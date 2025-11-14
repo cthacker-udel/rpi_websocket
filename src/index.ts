@@ -80,10 +80,11 @@ setInterval(async () => {
         }
       }
     }
-  } catch {
+  } catch (error) {
     debug &&
       console.error(
-        "Failed to transmit database information to project website."
+        "Failed to transmit database information to project website.",
+        (error as Error).message
       );
   }
 }, 60000);
