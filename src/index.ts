@@ -24,7 +24,13 @@ const databaseConnection = createPool({
 const temperatureTableName = process.env.TEMPERATURE_TABLE;
 const idTableName = process.env.IDS_TABLE;
 
-debug && console.log("Creating websocket server.");
+debug &&
+  console.log(
+    `Creating websocket server with environment variables: ${JSON.stringify({
+      temperatureTableName: temperatureTableName ?? "undefined",
+      idTableName: idTableName ?? "undefined",
+    })}.`
+  );
 const rpiWebSocketServer = new WebSocketServer({
   port: parseNumber(process.env.WEBSOCKET_PORT) ?? 8080,
 });
@@ -38,6 +44,11 @@ setInterval(async () => {
       .subtract(30, "days")
       .format("YYYY-MM-DD HH:mm:ss");
     if (!isNullish(temperatureTableName)) {
+      console.log("args = ", {
+        upperDateBound,
+        lowerDateBound,
+        temperatureTableName,
+      });
       const temperatureQueryResponse = await databaseConnection.execute<
         RowDataPacket[]
       >(`SELECT * FROM ?? WHERE created_at BETWEEN ? AND ?`, [
@@ -80,11 +91,10 @@ setInterval(async () => {
         }
       }
     }
-  } catch (error) {
+  } catch {
     debug &&
       console.error(
-        "Failed to transmit database information to project website.",
-        (error as Error).message
+        "Failed to transmit database information to project website."
       );
   }
 }, 60000);
