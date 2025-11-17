@@ -38,13 +38,6 @@ const rpiWebSocketServer = new WebSocketServer({
 setInterval(async () => {
   debug && console.log("Querying database");
   try {
-    debug && console.log("testing connection");
-    const testResult = await databaseConnection.execute("SELECT 1");
-    debug &&
-      console.log(
-        `test was a ${isNullish(testResult) ? "failure" : "success"}`
-      );
-
     const currentDay = dayjs();
     const upperDateBound = currentDay.format("YYYY-MM-DD HH:mm:ss");
     const lowerDateBound = currentDay
@@ -61,6 +54,10 @@ setInterval(async () => {
       if (!isEmpty(temperatureQueryResponse)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
           if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
+            debug &&
+              console.log(
+                `transmitting temperature update to websocket client ${eachWebsocketClient.url}`
+              );
             eachWebsocketClient.send(
               JSON.stringify({
                 type: "temperature_update",
@@ -81,6 +78,9 @@ setInterval(async () => {
       if (!isEmpty(idTableQueryResult)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
           if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
+            console.log(
+              `transmitting id update to websocket client ${eachWebsocketClient.url}`
+            );
             eachWebsocketClient.send(
               JSON.stringify({
                 type: "id_update",
@@ -91,7 +91,7 @@ setInterval(async () => {
         }
       }
     }
-  } catch (error: unknown) {
+  } catch {
     debug &&
       console.error(
         "Failed to transmit database information to project website."
