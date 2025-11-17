@@ -43,6 +43,8 @@ setInterval(async () => {
     const lowerDateBound = currentDay
       .subtract(30, "days")
       .format("YYYY-MM-DD HH:mm:ss");
+    debug && console.log({ lowerDateBound, upperDateBound });
+
     if (!isNullish(temperatureTableName)) {
       const temperatureQueryResponse = await databaseConnection.execute<
         RowDataPacket[]
