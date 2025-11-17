@@ -38,24 +38,25 @@ const rpiWebSocketServer = new WebSocketServer({
 setInterval(async () => {
   debug && console.log("Querying database");
   try {
+    debug && console.log("testing connection");
+    const testResult = await databaseConnection.execute("SELECT 1");
+    debug &&
+      console.log(
+        `test was a ${isNullish(testResult) ? "failure" : "success"}`
+      );
+
     const currentDay = dayjs();
     const upperDateBound = currentDay.format("YYYY-MM-DD HH:mm:ss");
     const lowerDateBound = currentDay
       .subtract(30, "days")
       .format("YYYY-MM-DD HH:mm:ss");
     if (!isNullish(temperatureTableName)) {
-      console.log("args = ", {
-        upperDateBound,
-        lowerDateBound,
-        temperatureTableName,
-      });
       const temperatureQueryResponse = await databaseConnection.execute<
         RowDataPacket[]
-      >(`SELECT * FROM ?? WHERE created_at BETWEEN ? AND ?`, [
-        temperatureTableName,
-        lowerDateBound,
-        upperDateBound,
-      ]);
+      >(
+        `SELECT * FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
+        [lowerDateBound, upperDateBound]
+      );
 
       if (!isEmpty(temperatureQueryResponse)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
@@ -91,10 +92,13 @@ setInterval(async () => {
         }
       }
     }
-  } catch {
+  } catch (error: unknown) {
     debug &&
       console.error(
-        "Failed to transmit database information to project website."
+        "Failed to transmit database information to project website.",
+        (error as Error).message,
+        (error as Error).cause,
+        (error as Error).stack
       );
   }
 }, 60000);
