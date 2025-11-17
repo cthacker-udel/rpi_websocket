@@ -39,7 +39,9 @@ setInterval(async () => {
   debug && console.log("Querying database");
   try {
     const currentDay = dayjs();
-    const upperDateBound = currentDay.format("YYYY-MM-DD HH:mm:ss");
+    const upperDateBound = currentDay
+      .add(1, "minute")
+      .format("YYYY-MM-DD HH:mm:ss");
     const lowerDateBound = currentDay
       .subtract(30, "days")
       .format("YYYY-MM-DD HH:mm:ss");
