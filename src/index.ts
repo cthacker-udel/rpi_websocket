@@ -12,6 +12,7 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const debug = process.env.DEBUG === "true";
+const verboseDebug = process.env.VERBOSE === "true";
 
 debug && console.log("Creating pool connection to database");
 const databaseConnection = createPool({
@@ -55,7 +56,7 @@ setInterval(async () => {
         [lowerDateBound, upperDateBound]
       );
 
-      debug &&
+      verboseDebug &&
         console.log(
           `Temperature query result: ${JSON.stringify(
             temperatureQueryResponse
@@ -86,8 +87,10 @@ setInterval(async () => {
         upperDateBound,
       ]);
 
-      debug &&
+      verboseDebug &&
         console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
+
+      console.log("clients = ", rpiWebSocketServer.clients);
 
       if (!isEmpty(idTableQueryResult)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
