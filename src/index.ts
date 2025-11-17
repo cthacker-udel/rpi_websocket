@@ -73,8 +73,7 @@ setInterval(async () => {
 
       const idTableQueryResult = await databaseConnection.execute<
         RowDataPacket[]
-      >(`SELECT * FROM ?? WHERE created_at BETWEEN ? AND ?`, [
-        idTableName,
+      >(`SELECT * FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`, [
         lowerDateBound,
         upperDateBound,
       ]);
@@ -95,10 +94,7 @@ setInterval(async () => {
   } catch (error: unknown) {
     debug &&
       console.error(
-        "Failed to transmit database information to project website.",
-        (error as Error).message,
-        (error as Error).cause,
-        (error as Error).stack
+        "Failed to transmit database information to project website."
       );
   }
 }, 60000);
