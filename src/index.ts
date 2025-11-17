@@ -36,6 +36,12 @@ const rpiWebSocketServer = new WebSocketServer({
   port: parseNumber(process.env.WEBSOCKET_PORT) ?? 8080,
 });
 
+rpiWebSocketServer.on("connection", (connectedServer) => {
+  if (debug) {
+    console.log(`${connectedServer.url} connected`);
+  }
+});
+
 setInterval(async () => {
   debug && console.log("Querying database");
   try {
