@@ -55,6 +55,13 @@ setInterval(async () => {
         [lowerDateBound, upperDateBound]
       );
 
+      debug &&
+        console.log(
+          `Temperature query result: ${JSON.stringify(
+            temperatureQueryResponse
+          )}`
+        );
+
       if (!isEmpty(temperatureQueryResponse)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
           if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
@@ -78,6 +85,9 @@ setInterval(async () => {
         lowerDateBound,
         upperDateBound,
       ]);
+
+      debug &&
+        console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
 
       if (!isEmpty(idTableQueryResult)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
