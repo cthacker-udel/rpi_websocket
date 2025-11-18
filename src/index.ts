@@ -59,7 +59,7 @@ const sendWebsocketData = async (): Promise<void> => {
     const temperatureQueryResponse = await databaseConnection.execute<
       RowDataPacket[]
     >(
-      `SELECT * FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
+      `SELECT celsius, fahrenheit, kelvin, pi_id, created_at FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
       [lower, upper]
     );
 
@@ -84,10 +84,10 @@ const sendWebsocketData = async (): Promise<void> => {
 
     const idTableQueryResult = await databaseConnection.execute<
       RowDataPacket[]
-    >(`SELECT * FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`, [
-      lower,
-      upper,
-    ]);
+    >(
+      `SELECT pi_id, name, created_at FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`,
+      [lower, upper]
+    );
 
     verboseDebug &&
       console.log(`Id query result: ${!isEmpty(idTableQueryResult)}`);
