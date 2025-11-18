@@ -96,8 +96,6 @@ setInterval(async () => {
       verboseDebug &&
         console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
 
-      console.log("clients = ", rpiWebSocketServer.clients);
-
       if (!isEmpty(idTableQueryResult)) {
         for (const eachWebsocketClient of rpiWebSocketServer.clients) {
           if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
