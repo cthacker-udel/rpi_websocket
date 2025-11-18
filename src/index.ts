@@ -13,6 +13,7 @@ dotenv.config();
 
 const debug = process.env.DEBUG === "true";
 const verboseDebug = process.env.VERBOSE === "true";
+const safeTableNames = new Set<string>(["temperatures", "ids"]);
 
 debug && console.log("Creating pool connection to database");
 const databaseConnection = createPool({
@@ -27,10 +28,10 @@ const idTableName = process.env.IDS_TABLE;
 
 debug &&
   console.log(
-    `Creating websocket server with environment variables: ${JSON.stringify({
+    `Creating websocket server with environment variables: ${{
       temperatureTableName: temperatureTableName ?? "undefined",
       idTableName: idTableName ?? "undefined",
-    })}.`
+    }}.`
   );
 const rpiWebSocketServer = new WebSocketServer({
   port: parseNumber(process.env.WEBSOCKET_PORT) ?? 8080,
@@ -40,24 +41,31 @@ const rpiWebSocketServer = new WebSocketServer({
  * Propagates database data to each websocket client connected to the websocket server.
  */
 const sendWebsocketData = async (): Promise<void> => {
-  if (!isNullish(temperatureTableName) && !isNullish(idTableName)) {
-    const currentDay = dayjs();
-    const upperDateBound = currentDay
-      .add(1, "minute")
-      .format("YYYY-MM-DD HH:mm:ss");
-    const lowerDateBound = currentDay
-      .subtract(30, "days")
-      .format("YYYY-MM-DD HH:mm:ss");
+  const isTemperatureTableNameValid =
+    !isNullish(temperatureTableName) &&
+    safeTableNames.has(temperatureTableName);
+  const isIdTableNameValid =
+    !isNullish(idTableName) && safeTableNames.has(idTableName);
+  const doesWebsocketServerHaveClients = rpiWebSocketServer.clients.size > 0;
+
+  if (
+    isTemperatureTableNameValid &&
+    isIdTableNameValid &&
+    doesWebsocketServerHaveClients
+  ) {
+    const now = dayjs();
+    const upper = now.add(1, "minute").format("YYYY-MM-DD HH:mm:ss");
+    const lower = now.subtract(1, "week").format("YYYY-MM-DD HH:mm:ss");
     const temperatureQueryResponse = await databaseConnection.execute<
       RowDataPacket[]
     >(
       `SELECT * FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
-      [lowerDateBound, upperDateBound]
+      [lower, upper]
     );
 
     verboseDebug &&
       console.log(
-        `Temperature query result: ${JSON.stringify(temperatureQueryResponse)}`
+        `Temperature query result: ${!isEmpty(temperatureQueryResponse)}`
       );
 
     if (!isEmpty(temperatureQueryResponse)) {
@@ -80,12 +88,12 @@ const sendWebsocketData = async (): Promise<void> => {
     const idTableQueryResult = await databaseConnection.execute<
       RowDataPacket[]
     >(`SELECT * FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`, [
-      lowerDateBound,
-      upperDateBound,
+      lower,
+      upper,
     ]);
 
     verboseDebug &&
-      console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
+      console.log(`Id query result: ${!isEmpty(idTableQueryResult)}`);
 
     if (!isEmpty(idTableQueryResult)) {
       for (const eachWebsocketClient of rpiWebSocketServer.clients) {
@@ -105,14 +113,14 @@ const sendWebsocketData = async (): Promise<void> => {
   }
 };
 
-rpiWebSocketServer.on("connection", async (connectedServer) => {
+rpiWebSocketServer.on("connection", async () => {
   if (debug) {
-    console.log(`${connectedServer.url} connected`);
+    console.log("Client connected");
     await sendWebsocketData();
   }
 });
 
-setInterval(async () => {
+const mainLoop = async () => {
   debug && console.log("Querying database");
   try {
     await sendWebsocketData();
@@ -121,8 +129,12 @@ setInterval(async () => {
       console.error(
         "Failed to transmit database information to project website."
       );
+  } finally {
+    setTimeout(mainLoop, 60_000);
   }
-}, 60000);
+};
+
+mainLoop();
 
 /** Close all resources on termination (interrupt handler). */
 process.on("SIGINT", async () => {
