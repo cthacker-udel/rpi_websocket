@@ -36,15 +36,11 @@ const rpiWebSocketServer = new WebSocketServer({
   port: parseNumber(process.env.WEBSOCKET_PORT) ?? 8080,
 });
 
-rpiWebSocketServer.on("connection", (connectedServer) => {
-  if (debug) {
-    console.log(`${connectedServer.url} connected`);
-  }
-});
-
-setInterval(async () => {
-  debug && console.log("Querying database");
-  try {
+/**
+ * Propagates database data to each websocket client connected to the websocket server.
+ */
+const sendWebsocketData = async (): Promise<void> => {
+  if (!isNullish(temperatureTableName) && !isNullish(idTableName)) {
     const currentDay = dayjs();
     const upperDateBound = currentDay
       .add(1, "minute")
@@ -52,66 +48,74 @@ setInterval(async () => {
     const lowerDateBound = currentDay
       .subtract(30, "days")
       .format("YYYY-MM-DD HH:mm:ss");
-    debug && console.log({ lowerDateBound, upperDateBound });
+    const temperatureQueryResponse = await databaseConnection.execute<
+      RowDataPacket[]
+    >(
+      `SELECT * FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
+      [lowerDateBound, upperDateBound]
+    );
 
-    if (!isNullish(temperatureTableName)) {
-      const temperatureQueryResponse = await databaseConnection.execute<
-        RowDataPacket[]
-      >(
-        `SELECT * FROM ${temperatureTableName} WHERE created_at BETWEEN ? AND ?`,
-        [lowerDateBound, upperDateBound]
+    verboseDebug &&
+      console.log(
+        `Temperature query result: ${JSON.stringify(temperatureQueryResponse)}`
       );
 
-      verboseDebug &&
-        console.log(
-          `Temperature query result: ${JSON.stringify(
-            temperatureQueryResponse
-          )}`
-        );
-
-      if (!isEmpty(temperatureQueryResponse)) {
-        for (const eachWebsocketClient of rpiWebSocketServer.clients) {
-          if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
-            debug &&
-              console.log(
-                `transmitting temperature update to websocket client ${eachWebsocketClient.url}`
-              );
-            eachWebsocketClient.send(
-              JSON.stringify({
-                type: "temperature_update",
-                data: temperatureQueryResponse[0],
-              })
-            );
-          }
-        }
-      }
-
-      const idTableQueryResult = await databaseConnection.execute<
-        RowDataPacket[]
-      >(`SELECT * FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`, [
-        lowerDateBound,
-        upperDateBound,
-      ]);
-
-      verboseDebug &&
-        console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
-
-      if (!isEmpty(idTableQueryResult)) {
-        for (const eachWebsocketClient of rpiWebSocketServer.clients) {
-          if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
+    if (!isEmpty(temperatureQueryResponse)) {
+      for (const eachWebsocketClient of rpiWebSocketServer.clients) {
+        if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
+          debug &&
             console.log(
-              `transmitting id update to websocket client ${eachWebsocketClient.url}`
+              `transmitting temperature update to websocket client ${eachWebsocketClient.url}`
             );
-            eachWebsocketClient.send(
-              JSON.stringify({
-                type: "id_update",
-                data: idTableQueryResult[0],
-              })
-            );
-          }
+          eachWebsocketClient.send(
+            JSON.stringify({
+              type: "temperature_update",
+              data: temperatureQueryResponse[0],
+            })
+          );
         }
       }
     }
+
+    const idTableQueryResult = await databaseConnection.execute<
+      RowDataPacket[]
+    >(`SELECT * FROM ${idTableName} WHERE created_at BETWEEN ? AND ?`, [
+      lowerDateBound,
+      upperDateBound,
+    ]);
+
+    verboseDebug &&
+      console.log(`Id query result: ${JSON.stringify(idTableQueryResult)}`);
+
+    if (!isEmpty(idTableQueryResult)) {
+      for (const eachWebsocketClient of rpiWebSocketServer.clients) {
+        if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
+          console.log(
+            `transmitting id update to websocket client ${eachWebsocketClient.url}`
+          );
+          eachWebsocketClient.send(
+            JSON.stringify({
+              type: "id_update",
+              data: idTableQueryResult[0],
+            })
+          );
+        }
+      }
+    }
+  }
+};
+
+rpiWebSocketServer.on("connection", async (connectedServer) => {
+  if (debug) {
+    console.log(`${connectedServer.url} connected`);
+    await sendWebsocketData();
+  }
+});
+
+setInterval(async () => {
+  debug && console.log("Querying database");
+  try {
+    await sendWebsocketData();
   } catch {
     debug &&
       console.error(
