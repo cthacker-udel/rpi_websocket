@@ -71,10 +71,7 @@ const sendWebsocketData = async (): Promise<void> => {
     if (!isEmpty(temperatureQueryResponse)) {
       for (const eachWebsocketClient of rpiWebSocketServer.clients) {
         if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
-          debug &&
-            console.log(
-              `transmitting temperature update to websocket client ${eachWebsocketClient.url}`
-            );
+          debug && console.log("transmitting temperature update");
           eachWebsocketClient.send(
             JSON.stringify({
               type: "temperature_update",
@@ -98,9 +95,7 @@ const sendWebsocketData = async (): Promise<void> => {
     if (!isEmpty(idTableQueryResult)) {
       for (const eachWebsocketClient of rpiWebSocketServer.clients) {
         if (eachWebsocketClient.readyState === eachWebsocketClient.OPEN) {
-          console.log(
-            `transmitting id update to websocket client ${eachWebsocketClient.url}`
-          );
+          debug && console.log("transmitting id update to websocket client");
           eachWebsocketClient.send(
             JSON.stringify({
               type: "id_update",
@@ -116,8 +111,9 @@ const sendWebsocketData = async (): Promise<void> => {
 rpiWebSocketServer.on("connection", async () => {
   if (debug) {
     console.log("Client connected");
-    await sendWebsocketData();
   }
+
+  await sendWebsocketData();
 });
 
 const mainLoop = async () => {
